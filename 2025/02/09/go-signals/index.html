@@ -6,15 +6,15 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="HandheldFriendly" content="True">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-    <meta name="description" content="Software Engineer specializing in cloud-based applications and Infrastructure as Code (IaC) with Golang and Terraform. Experienced with full-stack development using JavaScript frameworks. Passionate a">
+    <meta name="description" content="Handling Interrupt Signals in Go for a Graceful ShutdownWhen running a Go program, interrupt signals like Ctrl+C (SIGINT) or kill (SIGTERM) can abruptly terminate the process, potentially leading to d">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Go Signals">
 <meta property="og:url" content="https://deexithparand.github.io/2025/02/09/go-signals/index.html">
 <meta property="og:site_name" content="Deexith Parandaman">
-<meta property="og:description" content="Software Engineer specializing in cloud-based applications and Infrastructure as Code (IaC) with Golang and Terraform. Experienced with full-stack development using JavaScript frameworks. Passionate a">
+<meta property="og:description" content="Handling Interrupt Signals in Go for a Graceful ShutdownWhen running a Go program, interrupt signals like Ctrl+C (SIGINT) or kill (SIGTERM) can abruptly terminate the process, potentially leading to d">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2025-02-08T19:47:30.000Z">
-<meta property="article:modified_time" content="2025-02-08T19:57:12.706Z">
+<meta property="article:modified_time" content="2025-02-12T02:42:48.215Z">
 <meta property="article:author" content="Deexith">
 <meta property="article:tag" content="golang">
 <meta property="article:tag" content="signals">
@@ -100,6 +100,10 @@
     </div>
     
     
+      <div id="toc">
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Handling-Interrupt-Signals-in-Go-for-a-Graceful-Shutdown"><span class="toc-number">1.</span> <span class="toc-text">Handling Interrupt Signals in Go for a Graceful Shutdown</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#How-It-Works"><span class="toc-number">2.</span> <span class="toc-text">How It Works</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Why-It-Matters"><span class="toc-number">3.</span> <span class="toc-text">Why It Matters</span></a></li></ol>
+      </div>
+    
   </span>
 </div>
 
@@ -131,7 +135,7 @@
       
     <div class="article-category">
         <i class="fa-solid fa-archive"></i>
-        <a class="category-link" href="/categories/bytes/">bytes</a>
+        <a class="category-link" href="/categories/writes/">writes</a>
     </div>
 
 
@@ -147,7 +151,17 @@
   
 
   <div class="content e-content" itemprop="articleBody">
-    
+    <h3 id="Handling-Interrupt-Signals-in-Go-for-a-Graceful-Shutdown"><a href="#Handling-Interrupt-Signals-in-Go-for-a-Graceful-Shutdown" class="headerlink" title="Handling Interrupt Signals in Go for a Graceful Shutdown"></a>Handling Interrupt Signals in Go for a Graceful Shutdown</h3><p>When running a Go program, interrupt signals like <code>Ctrl+C</code> (SIGINT) or <code>kill</code> (SIGTERM) can abruptly terminate the process, potentially leading to data loss or unclean exits. To prevent this, we can <strong>catch these signals</strong> and <strong>perform cleanup</strong> before exiting.  </p>
+<p>Here’s a simple Go program that handles <code>SIGINT</code>, <code>SIGTSTP</code>, <code>SIGTERM</code>, and <code>SIGHUP</code>, ensuring a graceful shutdown:  </p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;os&quot;</span></span><br><span class="line">	<span class="string">&quot;os/signal&quot;</span></span><br><span class="line">	<span class="string">&quot;syscall&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">cleanupOperations</span><span class="params">()</span></span> &#123;</span><br><span class="line">	fmt.Println(<span class="string">&quot;Performing cleanup before exit...&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">interruptedFunctionResponse</span><span class="params">(signalData os.Signal)</span></span> &#123;</span><br><span class="line">	fmt.Println(<span class="string">&quot;\nReceived Signal:&quot;</span>, signalData)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">switch</span> signalData &#123;</span><br><span class="line">	<span class="keyword">case</span> syscall.SIGINT:</span><br><span class="line">		fmt.Println(<span class="string">&quot;Ctrl+C pressed. Exiting gracefully...&quot;</span>)</span><br><span class="line">	<span class="keyword">case</span> syscall.SIGTSTP:</span><br><span class="line">		fmt.Println(<span class="string">&quot;Ctrl+Z pressed. Suspending process...&quot;</span>)</span><br><span class="line">	<span class="keyword">case</span> syscall.SIGTERM:</span><br><span class="line">		fmt.Println(<span class="string">&quot;Termination signal received. Cleaning up...&quot;</span>)</span><br><span class="line">	<span class="keyword">case</span> syscall.SIGHUP:</span><br><span class="line">		fmt.Println(<span class="string">&quot;Terminal closed or Parent process killed. Handling reconnect...&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	cleanupOperations()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">handleInterruptSignals</span><span class="params">()</span></span> os.Signal &#123;</span><br><span class="line">	waitForSignal := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">	signalsToWaitFor := []os.Signal&#123;</span><br><span class="line">		syscall.SIGINT,  <span class="comment">// Ctrl+C</span></span><br><span class="line">		syscall.SIGTSTP, <span class="comment">// Ctrl+Z</span></span><br><span class="line">		syscall.SIGTERM, <span class="comment">// Kill signal</span></span><br><span class="line">		syscall.SIGHUP,  <span class="comment">// Terminal closed</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	signal.Notify(waitForSignal, signalsToWaitFor...)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> &lt;-waitForSignal</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	fmt.Println(<span class="string">&quot;Process running... (Press Ctrl+C to exit, Ctrl+Z to stop)&quot;</span>)</span><br><span class="line"></span><br><span class="line">	gotSignal := handleInterruptSignals()</span><br><span class="line">	interruptedFunctionResponse(gotSignal)</span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;Signal handled. Process exited cleanly.&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="How-It-Works"><a href="#How-It-Works" class="headerlink" title="How It Works"></a>How It Works</h3><ul>
+<li>The program listens for termination signals using <code>signal.Notify()</code>.  </li>
+<li>When a signal is received, it logs the signal, runs <strong>cleanup operations</strong>, and exits gracefully.</li>
+</ul>
+<h3 id="Why-It-Matters"><a href="#Why-It-Matters" class="headerlink" title="Why It Matters"></a>Why It Matters</h3><p>Without handling signals, the process would <strong>terminate abruptly</strong>, potentially leaving database connections open or unsaved work lost. Adding a <strong>graceful shutdown</strong> ensures a smooth exit.  </p>
+<p>Now, whenever you press <strong>Ctrl+C</strong> or send a termination signal, your program will handle it properly! 🚀</p>
+
   </div>
 </article>
 
@@ -173,6 +187,10 @@
 
     
     
+      <div id="toc-footer" style="display: none">
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Handling-Interrupt-Signals-in-Go-for-a-Graceful-Shutdown"><span class="toc-number">1.</span> <span class="toc-text">Handling Interrupt Signals in Go for a Graceful Shutdown</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#How-It-Works"><span class="toc-number">2.</span> <span class="toc-text">How It Works</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Why-It-Matters"><span class="toc-number">3.</span> <span class="toc-text">Why It Matters</span></a></li></ol>
+      </div>
+    
 
     <div id="share-footer" style="display: none">
       <ul>
@@ -193,6 +211,8 @@
 
     <div id="actions-footer">
         <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fa-solid fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        
+          <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fa-solid fa-list fa-lg" aria-hidden="true"></i> TOC</a>
         
         <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fa-solid fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
         <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
